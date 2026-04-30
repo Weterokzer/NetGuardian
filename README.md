@@ -11,7 +11,9 @@
 
 | Спидометр | Системные утилиты |
 |-----------|-------------------|
-| [Скриншот] | [Скриншот] |
+| <img width="1678" height="785" alt="image" src="https://github.com/user-attachments/assets/bd1a0cb9-1705-4f5a-a5f9-3989fb761194" /> |
+| <img width="1867" height="826" alt="image" src="https://github.com/user-attachments/assets/4f25a4d1-0444-47f9-b3eb-e3a5904ab5da" /> |
+
 
 ## ✨ Возможности
 
