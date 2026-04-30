@@ -149,7 +149,6 @@ class SystemPage(ctk.CTkFrame):
 
     def refresh_texts(self):
         """Обновление текстов при смене языка"""
-        # Пересоздаём виджеты для обновления текстов
         for widget in self.winfo_children():
             widget.destroy()
         self.create_widgets()
@@ -188,34 +187,106 @@ class SystemPage(ctk.CTkFrame):
         threading.Thread(target=do_clean, daemon=True).start()
 
     def disk_analyzer(self):
+        """Анализ диска с прогресс-баром"""
         dialog = ctk.CTkToplevel(self)
         dialog.title(lang.get("system_disk_title"))
-        dialog.geometry("750x550")
+        dialog.geometry("650x600")
+        dialog.resizable(False, False)
         dialog.transient(self)
-        text_box = ctk.CTkTextbox(dialog, font=ctk.CTkFont(family="Consolas", size=10), state="disabled")
-        text_box.pack(fill="both", expand=True, padx=10, pady=10)
-        text_box.configure(state="normal")
-        text_box.insert("end", f"🔄 {lang.get('system_analyzing')}\n")
-        text_box.configure(state="disabled")
+        dialog.grab_set()
+
+        dialog.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() - 650) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - 600) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        ctk.CTkLabel(dialog, text="📀 " + lang.get("system_disk_title"),
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color="#ffaa00").pack(pady=10)
+
+        progress_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        progress_frame.pack(fill="x", padx=30, pady=15)
+
+        self.analysis_progress_label = ctk.CTkLabel(progress_frame, text="Подготовка к анализу...",
+                                                    font=ctk.CTkFont(size=12))
+        self.analysis_progress_label.pack()
+
+        self.analysis_progress_bar = ctk.CTkProgressBar(progress_frame, width=500, height=15,
+                                                        progress_color="#00d4ff", fg_color="#2a2a3a")
+        self.analysis_progress_bar.pack(pady=10)
+        self.analysis_progress_bar.set(0)
+
+        self.analysis_percent_label = ctk.CTkLabel(progress_frame, text="0%",
+                                                   font=ctk.CTkFont(size=13, weight="bold"),
+                                                   text_color="#00ff88")
+        self.analysis_percent_label.pack()
+
+        result_frame = ctk.CTkFrame(dialog, corner_radius=12, fg_color="#1a1a2a")
+        result_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        ctk.CTkLabel(result_frame, text="📋 РЕЗУЛЬТАТЫ:",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color="#00d4ff").pack(anchor="w", padx=15, pady=5)
+
+        self.analysis_text_box = ctk.CTkTextbox(result_frame, font=ctk.CTkFont(family="Consolas", size=10),
+                                                state="disabled")
+        self.analysis_text_box.pack(fill="both", expand=True, padx=15, pady=5)
+
+        status_label = ctk.CTkLabel(dialog, text="", font=ctk.CTkFont(size=11))
+        status_label.pack(pady=5)
+
+        close_btn = ctk.CTkButton(dialog, text="ЗАКРЫТЬ", command=dialog.destroy,
+                                  width=100, state="disabled")
+        close_btn.pack(pady=10)
 
         def analyze():
             file_list = []
+            total_dirs = 0
+            processed = 0
+
+            status_label.configure(text="Подсчёт директорий...")
             for root, dirs, files in os.walk("C:\\"):
+                total_dirs += 1
+            status_label.configure(text=f"Найдено {total_dirs} папок. Анализ...")
+
+            for root, dirs, files in os.walk("C:\\"):
+                processed += 1
+                progress = processed / total_dirs
+                percent = int(progress * 100)
+
+                self.after(0, lambda p=progress, perc=percent: self.update_analysis_progress(p, perc))
+
                 for name in files:
                     try:
                         file_path = os.path.join(root, name)
                         file_list.append((file_path, os.path.getsize(file_path)))
                     except:
                         continue
+
+                if processed % 10 == 0:
+                    self.after(0, lambda d=processed, t=total_dirs: status_label.configure(
+                        text=f"Обработано: {d} / {t} папок"))
+
             file_list.sort(key=lambda x: x[1], reverse=True)
+
             result = "=" * 70 + f"\n{lang.get('system_top_files')}\n" + "=" * 70 + "\n\n"
             for i, (path, size) in enumerate(file_list[:20], 1):
                 size_mb = size / (1024 * 1024)
-                result += f"[{i:2d}] {size_mb:.1f} MB | {path}\n"
-            text_box.configure(state="normal")
-            text_box.delete("1.0", "end")
-            text_box.insert("1.0", result)
-            text_box.configure(state="disabled")
+                size_gb = size / (1024 * 1024 * 1024)
+                if size_gb > 1:
+                    result += f"[{i:2d}] 🔴 {size_gb:.2f} GB | {path}\n"
+                elif size_mb > 100:
+                    result += f"[{i:2d}] 🟡 {size_mb:.1f} MB | {path}\n"
+                else:
+                    result += f"[{i:2d}] 🟢 {size_mb:.1f} MB | {path}\n"
+
+            result += "\n" + "=" * 70 + "\n"
+            result += f"📊 Всего проанализировано: {len(file_list):,} файлов\n"
+            result += "=" * 70
+
+            self.after(0, lambda: self.show_analysis_result(result))
+            self.after(0, lambda: status_label.configure(text="✅ Анализ завершён!", text_color="#00ff88"))
+            self.after(0, lambda: close_btn.configure(state="normal"))
 
         threading.Thread(target=analyze, daemon=True).start()
 
@@ -228,13 +299,11 @@ class SystemPage(ctk.CTkFrame):
         dialog.transient(self)
         dialog.grab_set()
 
-        # Центрируем
         dialog.update_idletasks()
         x = self.winfo_rootx() + (self.winfo_width() - 550) // 2
         y = self.winfo_rooty() + (self.winfo_height() - 600) // 2
         dialog.geometry(f"+{x}+{y}")
 
-        # Заголовок
         ctk.CTkLabel(dialog, text="⚡ ТУРБО-ОПТИМИЗАЦИЯ",
                      font=ctk.CTkFont(size=18, weight="bold"),
                      text_color="#ffaa00").pack(pady=15)
@@ -242,17 +311,14 @@ class SystemPage(ctk.CTkFrame):
         ctk.CTkLabel(dialog, text="Выберите действия для ускорения системы:",
                      font=ctk.CTkFont(size=12)).pack(pady=5)
 
-        # Фрейм с опциями
         options_frame = ctk.CTkFrame(dialog, fg_color="#1a1a2a", corner_radius=12)
         options_frame.pack(fill="x", padx=20, pady=10)
 
-        # Переменные
         opt_telemetry = ctk.BooleanVar(value=True)
         opt_menu = ctk.BooleanVar(value=True)
         opt_prefetch = ctk.BooleanVar(value=False)
         opt_indexing = ctk.BooleanVar(value=False)
 
-        # Опции
         opt1 = ctk.CTkCheckBox(options_frame, text="🛡️ Отключение телеметрии Windows",
                                variable=opt_telemetry, font=ctk.CTkFont(size=12))
         opt1.pack(anchor="w", padx=20, pady=5)
@@ -269,7 +335,6 @@ class SystemPage(ctk.CTkFrame):
                                variable=opt_indexing, font=ctk.CTkFont(size=12))
         opt4.pack(anchor="w", padx=20, pady=5)
 
-        # Фрейм для результатов (скроллируемый)
         result_frame = ctk.CTkFrame(dialog, fg_color="#1a1a2a", corner_radius=12)
         result_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
@@ -278,19 +343,13 @@ class SystemPage(ctk.CTkFrame):
                      text_color="#00d4ff").pack(anchor="w", padx=15, pady=5)
 
         result_textbox = ctk.CTkTextbox(result_frame, font=ctk.CTkFont(family="Consolas", size=10),
-                                        state="normal", height=120)
+                                        state="disabled", height=120)
         result_textbox.pack(fill="both", expand=True, padx=15, pady=5)
-        result_textbox.configure(state="disabled")
 
-        # Кнопки
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack(pady=15)
 
-        # Словарь для хранения исходного состояния кнопок
-        original_states = {}
-
         def set_controls_state(state):
-            """Включить/выключить все контролы"""
             opt1.configure(state=state)
             opt2.configure(state=state)
             opt3.configure(state=state)
@@ -303,7 +362,6 @@ class SystemPage(ctk.CTkFrame):
                 cancel_btn.configure(state="disabled")
 
         def add_result(text):
-            """Добавить строку в результат"""
             result_textbox.configure(state="normal")
             result_textbox.insert("end", f"{text}\n")
             result_textbox.see("end")
@@ -360,7 +418,6 @@ class SystemPage(ctk.CTkFrame):
                     except:
                         results.append("❌ Индексация - ошибка")
 
-                # Показываем результаты
                 for r in results:
                     self.after(0, lambda res=r: add_result(res))
 
@@ -379,40 +436,23 @@ class SystemPage(ctk.CTkFrame):
         cancel_btn = ctk.CTkButton(btn_frame, text="❌ ОТМЕНА", fg_color="#2c3e66", command=cancel, width=120)
         cancel_btn.pack(side="left", padx=10)
 
-        # Кнопка "Закрыть" появляется после оптимизации
         close_btn = ctk.CTkButton(btn_frame, text="📋 ЗАКРЫТЬ", fg_color="#2ecc71", command=dialog.destroy, width=120)
 
-        # Не показываем сразу
-
-        # Функция для показа кнопки закрытия после завершения
         def show_close_button():
             close_btn.pack(side="left", padx=10)
             apply_btn.configure(text="🚀 ПРИМЕНИТЬ", state="disabled")
 
         def check_and_show():
-            """Проверяем, можно ли показать кнопку закрытия"""
-            # Ждём пока apply_btn станет активным
             if apply_btn.cget("state") == "normal":
                 show_close_button()
             else:
                 dialog.after(500, check_and_show)
 
-        # Запускаем проверку после завершения оптимизации
-        def on_apply_complete():
-            if apply_btn.cget("state") == "normal":
-                show_close_button()
-            else:
-                dialog.after(500, on_apply_complete)
-
-        # Сохраняем оригинальный callback
-        original_apply = apply
-
         def new_apply():
-            original_apply()
+            apply()
             dialog.after(100, check_and_show)
 
         apply_btn.configure(command=new_apply)
-
 
     def show_startup(self):
         dialog = ctk.CTkToplevel(self)
@@ -435,11 +475,9 @@ class SystemPage(ctk.CTkFrame):
         cpu_percent = psutil.cpu_percent()
         ram = psutil.virtual_memory()
 
-        # Переводим названия в зависимости от языка
         cpu_text = "CPU" if lang.get_lang() == "en" else "ПРОЦЕССОР"
         ram_text = "RAM" if lang.get_lang() == "en" else "ОПЕРАТИВНАЯ ПАМЯТЬ"
         disk_text = "DISKS" if lang.get_lang() == "en" else "ДИСКИ"
-        free_text = "free" if lang.get_lang() == "en" else "свободно"
         used_text = "used" if lang.get_lang() == "en" else "заполнено"
 
         info = f"📊 {cpu_text}: {cpu_percent}%\n"
@@ -493,6 +531,25 @@ class SystemPage(ctk.CTkFrame):
         else:
             self.temp_label.configure(text=f"🌡️ {lang.get('system_temp_not_found')}", text_color="#ffaa00")
         self.after(30000, self.update_temperature)
+
+    def update_analysis_progress(self, progress, percent):
+        """Обновление прогресса анализа диска"""
+        self.analysis_progress_bar.set(progress)
+        self.analysis_percent_label.configure(text=f"{percent}%")
+
+        if percent < 30:
+            self.analysis_progress_label.configure(text="🔄 Сканирование диска...")
+        elif percent < 70:
+            self.analysis_progress_label.configure(text="📁 Поиск файлов...")
+        else:
+            self.analysis_progress_label.configure(text="📊 Сортировка результатов...")
+
+    def show_analysis_result(self, result):
+        """Показать результат анализа"""
+        self.analysis_text_box.configure(state="normal")
+        self.analysis_text_box.delete("1.0", "end")
+        self.analysis_text_box.insert("1.0", result)
+        self.analysis_text_box.configure(state="disabled")
 
     def show_message(self, message):
         label = ctk.CTkLabel(self, text=message, font=ctk.CTkFont(size=11),
