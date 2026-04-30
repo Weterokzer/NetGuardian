@@ -2,6 +2,7 @@ import customtkinter as ctk
 import subprocess
 import os
 import sys
+import webbrowser
 from core.settings import AppSettings
 from core.language import Language
 
@@ -81,7 +82,46 @@ class SettingsPage(ctk.CTkFrame):
                                           width=150)
         theme_options.pack(pady=8, anchor="w", padx=40)
 
-        # О программе (сохраняем ссылку)
+        # Поддержка проекта
+        support_frame = ctk.CTkFrame(self, corner_radius=15, fg_color="#1a1a2a")
+        support_frame.pack(fill="x", padx=20, pady=10)
+
+        ctk.CTkLabel(support_frame, text="☕ ПОДДЕРЖАТЬ ПРОЕКТ",
+                     font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color="#ffaa00").pack(pady=10, anchor="w", padx=20)
+
+        ctk.CTkLabel(support_frame,
+                     text="Если вам нравится NetGuardian, вы можете поддержать разработку!",
+                     font=ctk.CTkFont(size=11), text_color="#888").pack(anchor="w", padx=40)
+
+        # Кнопки поддержки
+        support_row = ctk.CTkFrame(support_frame, fg_color="transparent")
+        support_row.pack(pady=10)
+
+        def open_tipee():
+            webbrowser.open("https://www.tipeeestream.com/net-guardian-ultimate/donation")
+
+        def open_github():
+            webbrowser.open("https://github.com/Weterokzer/NetGuardian")
+
+        # Кнопка TipeeeStream
+        tipee_btn = ctk.CTkButton(support_row, text="💝 TipeeeStream",
+                                  fg_color="#e74c3c", hover_color="#c0392b",
+                                  width=140, command=open_tipee)
+        tipee_btn.pack(side="left", padx=5)
+
+        # Кнопка GitHub
+        github_btn = ctk.CTkButton(support_row, text="⭐ GitHub",
+                                   fg_color="#333", hover_color="#555",
+                                   width=100, command=open_github)
+        github_btn.pack(side="left", padx=5)
+
+        # Подсказки
+        from utils.simple_tooltip import add_tooltip
+        add_tooltip(tipee_btn, "Поддержать через TipeeeStream")
+        add_tooltip(github_btn, "Поставить звезду на GitHub")
+
+        # О программе
         self.about_frame = ctk.CTkFrame(self, corner_radius=15, fg_color="#1a1a2a")
         self.about_frame.pack(fill="x", padx=20, pady=10)
 
@@ -111,14 +151,13 @@ class SettingsPage(ctk.CTkFrame):
                                   command=self.reset_settings)
         reset_btn.pack(pady=15)
 
-        # Панель для сообщения о pending restart (создаём в конце)
+        # Панель для сообщения о pending restart
         self.restart_frame = ctk.CTkFrame(self, corner_radius=12, fg_color="#d35400")
         self.restart_label = ctk.CTkLabel(self.restart_frame, text="", font=ctk.CTkFont(size=12, weight="bold"))
         self.restart_label.pack(pady=8)
         self.restart_btn = ctk.CTkButton(self.restart_frame, text="🔄 ПЕРЕЗАПУСТИТЬ СЕЙЧАС",
                                          fg_color="#2ecc71", command=self.execute_restart)
         self.restart_btn.pack(pady=5)
-        # Пока не показываем
 
     def load_settings(self):
         self.auto_start_var.set(self.settings.get("auto_start", False))
@@ -129,7 +168,6 @@ class SettingsPage(ctk.CTkFrame):
         self.lang_var.set("🇷🇺 Русский" if lang == "ru" else "🇬🇧 English")
 
     def on_language_change(self, choice):
-        """Смена языка"""
         new_lang = "ru" if "Русский" in choice else "en"
         self.settings.set_language(new_lang)
         self.pending_lang = choice
@@ -137,7 +175,6 @@ class SettingsPage(ctk.CTkFrame):
         self.show_restart_panel()
 
     def on_theme_change(self, choice):
-        """Смена темы"""
         new_theme = "dark" if "Тёмная" in choice else "light"
         self.settings.set("theme", new_theme)
         self.pending_theme = choice
@@ -145,7 +182,6 @@ class SettingsPage(ctk.CTkFrame):
         self.show_restart_panel()
 
     def show_restart_panel(self):
-        """Показать панель с предложением перезапуска"""
         changes = []
         if self.pending_lang:
             changes.append(f"язык → {self.pending_lang}")
@@ -155,15 +191,11 @@ class SettingsPage(ctk.CTkFrame):
         if changes:
             text = f"✅ Изменения сохранены: {', '.join(changes)}\n⚠️ Для применения изменений требуется перезапуск!"
             self.restart_label.configure(text=text, text_color="#ffffff")
-
-            # Показываем панель перед about_frame
             self.restart_frame.pack(fill="x", padx=20, pady=10)
-            # Перемещаем перед about_frame
             self.restart_frame.pack_forget()
             self.restart_frame.pack(fill="x", padx=20, pady=10, before=self.about_frame)
 
     def execute_restart(self):
-        """Перезапуск приложения"""
         self.app.restart_app()
 
     def toggle_auto_start(self):
