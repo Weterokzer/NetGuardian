@@ -1,59 +1,108 @@
-# 🛡️ NET GUARDIAN ULTIMATE
+# NetGuardian Ultimate
 
-**Профессиональный инструмент для мониторинга сети и защиты конфиденциальности**
+NetGuardian Ultimate is a Windows desktop utility for network monitoring, speed testing, firewall port rules, torrent upload limiting, process control, and basic system maintenance.
 
-[![Version](https://img.shields.io/badge/version-4.0-blue.svg)](https://github.com)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com)
-[![Python](https://img.shields.io/badge/python-3.10+-yellow.svg)](https://python.org)
-[![Windows](https://img.shields.io/badge/Windows-10%2F11-blue?logo=windows)](https://microsoft.com)
+The project is written in Python with CustomTkinter and is focused on a simple, dark, all-in-one control panel for everyday Windows users.
 
-## 📸 Скриншоты
+![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-20c997)
 
-| Спидометр | Системные утилиты |
-|-----------|-------------------|
-| <img width="1678" height="785" alt="image" src="https://github.com/user-attachments/assets/bd1a0cb9-1705-4f5a-a5f9-3989fb761194" /> |
-| <img width="1867" height="826" alt="image" src="https://github.com/user-attachments/assets/4f25a4d1-0444-47f9-b3eb-e3a5904ab5da" /> |
+## Features
 
+- Realtime network speed monitor.
+- Speedtest with saved JSON history.
+- Download and upload charts.
+- Process list with search, pagination, memory and CPU usage.
+- Safer process termination with protected system processes.
+- Windows Firewall port rule management.
+- Torrent upload limiting through Windows QoS policies.
+- Startup app viewer.
+- Local network scanner.
+- TEMP cleanup with safer skipping of fresh files.
+- System info, battery, disk usage and temperature panels.
+- Dark UI with tray support.
+- Russian and English language options.
 
-## ✨ Возможности
+## Screenshots
 
-| Функция | Описание |
-|---------|----------|
-| 📡 **Спидометр** | Мониторинг скорости в реальном времени с графиками |
-| ⚡ **Speedtest** | Тест скорости с сохранением истории в JSON |
-| 🎮 **Контроль процессов** | Управление процессами, поиск, завершение, пагинация |
-| 🌊 **Управление портами** | Открытие/закрытие портов брандмауэра Windows |
-| 🏴‍☠️ **Защита торрентов** | Ограничение исходящего трафика через QoS |
-| 🔧 **Системные утилиты** | Очистка TEMP, анализ диска, турбо-оптимизация |
-| 🌐 **NET GUARDIAN SCAN** | Сканирование локальной сети с прогресс-баром |
-| 📊 **Статистика** | История тестов, анализ производительности |
-| ⚙️ **Настройки** | Тема (тёмная/светлая), язык (Русский/English), автозапуск |
-| 🖥️ **System Tray** | Работа в фоне с отображением скорости |
+Add fresh screenshots here after publishing the repository:
 
-## 🎮 Горячие клавиши
+```md
+![Speedometer](docs/screenshots/speedometer.png)
+![System](docs/screenshots/system.png)
+![Settings](docs/screenshots/settings.png)
+```
 
-| Клавиша | Действие |
-|---------|----------|
-| `Ctrl+1` | Спидометр |
-| `Ctrl+2` | Контроль процессов |
-| `Ctrl+3` | Управление портами |
-| `Ctrl+4` | Защита торрентов |
-| `Ctrl+5` | Статистика |
-| `Ctrl+6` | Настройки |
-| `Ctrl+7` | Системные утилиты |
-| `F5` | Перезапуск приложения |
-| `Esc` | Выход |
+## Important Safety Notes
 
-## 🚀 Установка
+Some features change Windows system settings:
 
-### Вариант 1: Готовый .exe (рекомендуется)
-1. Скачайте `NetGuardian.exe` из раздела [Releases](https://github.com/yourname/NetGuardian/releases)
-2. Запустите **от имени администратора** (для управления портами и оптимизации)
-3. Готово!
+- opening or deleting firewall rules;
+- creating or removing QoS policies;
+- stopping services in turbo optimization;
+- terminating processes;
+- cleaning temporary files.
 
-### Вариант 2: Из исходников
+Run the app as administrator only when you need these system-level actions. The app should show a clear error when administrator rights are required.
+
+## Installation From Source
+
 ```bash
-git clone https://github.com/yourname/NetGuardian.git
+git clone https://github.com/Weterokzer/NetGuardian.git
 cd NetGuardian
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 python net_guardian.py
+```
+
+## Build EXE
+
+PyInstaller is used for the Windows build.
+
+```bash
+pip install -r requirements.txt
+pip install pyinstaller
+pyinstaller NetGuardian.spec --noconfirm
+```
+
+The compiled app will appear here:
+
+```text
+dist/NetGuardian.exe
+```
+
+For GitHub, upload the `.exe` through **Releases**, not directly into the source tree.
+
+## Logs And Local Data
+
+NetGuardian stores local user data outside the repository:
+
+```text
+%USERPROFILE%\.netguardian_logs\
+%USERPROFILE%\.netguardian_settings.json
+%USERPROFILE%\.netguardian_history.json
+```
+
+## Hotkeys
+
+| Hotkey | Action |
+|---|---|
+| `Ctrl+1` | Speedometer |
+| `Ctrl+2` | Process control |
+| `Ctrl+3` | Ports |
+| `Ctrl+4` | Torrent protection |
+| `Ctrl+5` | Statistics |
+| `Ctrl+6` | Settings |
+| `Ctrl+7` | System utilities |
+| `F5` | Restart app |
+| `Esc` | Exit |
+
+## Project Status
+
+This is an active personal project. It is usable, but some Windows system features may behave differently depending on permissions, Windows edition, antivirus settings, and installed network components.
+
+## License
+
+MIT License. See [LICENSE](LICENSE).

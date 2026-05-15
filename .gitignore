@@ -12,8 +12,8 @@ env/
 # PyInstaller
 build/
 dist/
-*.spec
 *.exe
+!NetGuardian.spec
 
 # IDE
 .idea/
