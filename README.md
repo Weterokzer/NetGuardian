@@ -26,13 +26,15 @@ The project is written in Python with CustomTkinter and is focused on a simple, 
 
 ## Screenshots
 
-Add fresh screenshots here after publishing the repository:
+Screenshots will be added in the next release. Recommended views:
 
-```md
-![Speedometer](docs/screenshots/speedometer.png)
-![System](docs/screenshots/system.png)
-![Settings](docs/screenshots/settings.png)
-```
+- Speedometer
+- Process control
+- Ports
+- Torrent protection
+- Statistics
+- Settings
+- System utilities
 
 ## Important Safety Notes
 
