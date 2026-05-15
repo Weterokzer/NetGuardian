@@ -28,13 +28,19 @@ The project is written in Python with CustomTkinter and is focused on a simple, 
 
 Screenshots will be added in the next release. Recommended views:
 
-- Speedometer
-- Process control
-- Ports
-- Torrent protection
-- Statistics
-- Settings
-- System utilities
+- <img width="1302" height="892" alt="image" src="https://github.com/user-attachments/assets/5e8ca67f-d6c8-4da9-a5be-ea1a5bbbd4b1" />
+
+- <img width="1295" height="883" alt="image" src="https://github.com/user-attachments/assets/e835bd29-5e6c-4f26-9400-9dfd094709f7" />
+
+- <img width="1301" height="878" alt="image" src="https://github.com/user-attachments/assets/a57cd53e-34f3-4173-afad-299c38c28d6e" />
+
+- <img width="1295" height="875" alt="image" src="https://github.com/user-attachments/assets/9c163d9e-95db-4eb0-81fa-707116188dad" />
+
+- <img width="1291" height="877" alt="image" src="https://github.com/user-attachments/assets/3d2bd4fa-6829-460e-b329-6e823c88618e" />
+
+- <img width="1293" height="873" alt="image" src="https://github.com/user-attachments/assets/651a521d-ad70-46a1-8275-2be8b3cf38d7" />
+
+- <img width="1293" height="884" alt="image" src="https://github.com/user-attachments/assets/369dff9d-f8a6-496a-b403-0c26d9b708cf" />
 
 ## Important Safety Notes
 
