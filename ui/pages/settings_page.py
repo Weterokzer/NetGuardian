@@ -5,6 +5,7 @@ import sys
 import webbrowser
 from core.settings import AppSettings
 from core.language import Language
+from utils.system import SystemHelper
 
 
 class SettingsPage(ctk.CTkFrame):
@@ -31,6 +32,19 @@ class SettingsPage(ctk.CTkFrame):
         ctk.CTkLabel(header, text="SETTINGS",
                      font=ctk.CTkFont(size=14, weight="bold"),
                      text_color="#666").pack(pady=(0, 15))
+
+        self.summary_frame = ctk.CTkFrame(self, corner_radius=12, fg_color="#1a1a2a")
+        self.summary_frame.pack(fill="x", padx=20, pady=(0, 10))
+
+        self.startup_status = self._create_summary_card(
+            self.summary_frame, "АВТОЗАПУСК", "Проверка...", "#00d4ff"
+        )
+        self.tray_status = self._create_summary_card(
+            self.summary_frame, "ТРЕЙ", "Проверка...", "#00ff88"
+        )
+        self.theme_status = self._create_summary_card(
+            self.summary_frame, "ТЕМА", "Проверка...", "#ffaa00"
+        )
 
         # Основные настройки
         general_frame = ctk.CTkFrame(self, corner_radius=15, fg_color="#1a1a2a")
@@ -159,13 +173,38 @@ class SettingsPage(ctk.CTkFrame):
                                          fg_color="#2ecc71", command=self.execute_restart)
         self.restart_btn.pack(pady=5)
 
+    def _create_summary_card(self, parent, title, value, color):
+        card = ctk.CTkFrame(parent, corner_radius=10, fg_color="#0f0f1a")
+        card.pack(side="left", fill="x", expand=True, padx=8, pady=10)
+
+        ctk.CTkLabel(card, text=title,
+                     font=ctk.CTkFont(size=10, weight="bold"),
+                     text_color="#8a95a8").pack(anchor="w", padx=14, pady=(10, 0))
+        value_label = ctk.CTkLabel(card, text=value,
+                                   font=ctk.CTkFont(size=14, weight="bold"),
+                                   text_color=color)
+        value_label.pack(anchor="w", padx=14, pady=(2, 10))
+        return value_label
+
+    def update_summary(self):
+        startup = "Включён" if self.auto_start_var.get() else "Выключен"
+        tray = "Включён" if self.minimize_tray_var.get() else "Выключен"
+        theme = "Тёмная" if self.settings.get("theme", "dark") == "dark" else "Светлая"
+
+        self.startup_status.configure(text=startup, text_color="#00ff88" if self.auto_start_var.get() else "#8a95a8")
+        self.tray_status.configure(text=tray, text_color="#00ff88" if self.minimize_tray_var.get() else "#8a95a8")
+        self.theme_status.configure(text=theme)
+
     def load_settings(self):
-        self.auto_start_var.set(self.settings.get("auto_start", False))
+        real_auto_start = SystemHelper.is_in_startup()
+        self.auto_start_var.set(real_auto_start)
+        self.settings.set("auto_start", real_auto_start)
         self.minimize_tray_var.set(self.settings.get("minimize_to_tray", True))
         theme = self.settings.get("theme", "dark")
         self.theme_var.set("🌙 Тёмная" if theme == "dark" else "☀️ Светлая")
         lang = self.settings.get_language()
         self.lang_var.set("🇷🇺 Русский" if lang == "ru" else "🇬🇧 English")
+        self.update_summary()
 
     def on_language_change(self, choice):
         new_lang = "ru" if "Русский" in choice else "en"
@@ -179,6 +218,7 @@ class SettingsPage(ctk.CTkFrame):
         self.settings.set("theme", new_theme)
         self.pending_theme = choice
         self.pending_restart = True
+        self.update_summary()
         self.show_restart_panel()
 
     def show_restart_panel(self):
@@ -200,17 +240,23 @@ class SettingsPage(ctk.CTkFrame):
 
     def toggle_auto_start(self):
         enabled = self.auto_start_var.get()
-        self.settings.set("auto_start", enabled)
-        script_path = os.path.abspath("net_guardian.py")
-        python_path = sys.executable
-        if enabled:
-            cmd = f'reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v NetGuardian /t REG_SZ /d "{python_path} {script_path}" /f'
-        else:
-            cmd = 'reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v NetGuardian /f'
-        subprocess.run(cmd, shell=True, capture_output=True)
+        try:
+            if enabled:
+                SystemHelper.add_to_startup()
+                self.show_message("✅ Автозагрузка включена")
+            else:
+                SystemHelper.remove_from_startup()
+                self.show_message("✅ Автозагрузка отключена")
+            self.settings.set("auto_start", enabled)
+            self.update_summary()
+        except Exception as exc:
+            self.auto_start_var.set(not enabled)
+            self.update_summary()
+            self.show_message(f"❌ Автозагрузка: {str(exc)[:80]}")
 
     def toggle_minimize_tray(self):
         self.settings.set("minimize_to_tray", self.minimize_tray_var.get())
+        self.update_summary()
 
     def reset_settings(self):
         dialog = ctk.CTkToplevel(self)

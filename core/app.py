@@ -8,6 +8,13 @@ from datetime import datetime
 from core.workers import BackgroundWorker
 from core.settings import AppSettings
 from ui.tray import SystemTray, TRAY_AVAILABLE
+from ui.polish import COLORS, polish_widget_tree
+from utils.system_ops import clean_temp_files
+
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
 
 # ========== ЛОГИРОВАНИЕ ==========
 log_dir = os.path.expanduser("~/.netguardian_logs")
@@ -15,7 +22,7 @@ os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, f"netguardian_{datetime.now().strftime('%Y%m%d')}.log")
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(log_file, encoding='utf-8'),
@@ -23,6 +30,8 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
 class NetGuardianApp:
@@ -39,6 +48,7 @@ class NetGuardianApp:
             ctk.set_default_color_theme("dark-blue")
 
             self.main_window = ctk.CTk()
+            self.main_window.configure(fg_color=COLORS["app_bg"])
             self.main_window.title("🛡️ NET GUARDIAN ULTIMATE")
             self.main_window.geometry("1300x850")
             self.main_window.minsize(1000, 700)
@@ -95,8 +105,8 @@ class NetGuardianApp:
             self.sidebar = Sidebar(self.main_window, self.switch_page)
             self.sidebar.grid(row=0, column=0, sticky="nsew")
 
-            self.content_frame = ctk.CTkFrame(self.main_window, fg_color="transparent")
-            self.content_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
+            self.content_frame = ctk.CTkFrame(self.main_window, fg_color=COLORS["app_bg"])
+            self.content_frame.grid(row=0, column=1, padx=18, pady=18, sticky="nsew")
             self.content_frame.grid_columnconfigure(0, weight=1)
             self.content_frame.grid_rowconfigure(0, weight=1)
 
@@ -112,6 +122,7 @@ class NetGuardianApp:
 
             last_tab = self.settings.get("last_tab", "speed")
             self.switch_page(last_tab)
+            polish_widget_tree(self.main_window)
             logger.info("Интерфейс загружен")
         except Exception as e:
             logger.error(f"Ошибка загрузки интерфейса: {e}", exc_info=True)
@@ -127,6 +138,7 @@ class NetGuardianApp:
             # Обновляем язык на текущей странице
             if hasattr(self.pages[page_id], 'refresh_texts'):
                 self.pages[page_id].refresh_texts()
+            polish_widget_tree(self.pages[page_id])
 
     def restart_app(self):
         logger.info("Перезапуск приложения")
@@ -222,33 +234,7 @@ class NetGuardianApp:
 
     def clean_temp_files(self):
         """Очистка временных файлов"""
-        temp_paths = [
-            os.environ.get('TEMP', ''),
-            os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Temp')
-        ]
-
-        cleaned = 0
-        freed = 0
-
-        for temp_path in temp_paths:
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    for filename in os.listdir(temp_path):
-                        file_path = os.path.join(temp_path, filename)
-                        try:
-                            if os.path.isfile(file_path):
-                                freed += os.path.getsize(file_path)
-                                os.remove(file_path)
-                                cleaned += 1
-                            elif os.path.isdir(file_path):
-                                shutil.rmtree(file_path, ignore_errors=True)
-                                cleaned += 1
-                        except:
-                            pass
-                except:
-                    pass
-
-        logger.info(f"Очистка TEMP: удалено {cleaned} файлов, освобождено {freed / 1024 / 1024:.1f} MB")
+        clean_temp_files()
 
 
 if __name__ == "__main__":

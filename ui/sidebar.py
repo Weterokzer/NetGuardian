@@ -62,8 +62,9 @@ class Sidebar(ctk.CTkFrame):
         logo_frame = ctk.CTkFrame(self, fg_color="transparent")
         logo_frame.pack(pady=25)
 
-        ctk.CTkLabel(logo_frame, text="🛡️", font=ctk.CTkFont(size=48),
-                     text_color=self.logo_color).pack()
+        ctk.CTkLabel(logo_frame, text="🛡", width=90, anchor="center",
+                     font=ctk.CTkFont(size=46),
+                     text_color=self.logo_color).pack(anchor="center")
 
         ctk.CTkLabel(logo_frame, text="NET GUARDIAN",
                      font=ctk.CTkFont(size=20, weight="bold"),

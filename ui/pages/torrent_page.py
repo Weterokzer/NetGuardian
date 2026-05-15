@@ -1,7 +1,7 @@
 import customtkinter as ctk
-import subprocess
 import threading
 from utils.simple_tooltip import add_tooltip
+from modules.torrent_protect import TorrentProtect
 
 
 class TorrentPage(ctk.CTkFrame):
@@ -9,6 +9,7 @@ class TorrentPage(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent")
         self.app = app
         self.current_limit = 0
+        self.torrent_protect = TorrentProtect()
         self.client_var = ctk.StringVar(value="Все клиенты")
         self.create_widgets()
 
@@ -132,21 +133,7 @@ class TorrentPage(ctk.CTkFrame):
 
     def set_limit(self, speed_kbps):
         def do_set():
-            try:
-                if speed_kbps > 0:
-                    subprocess.run(
-                        'powershell -Command "Get-NetQosPolicy -Name \'NG_Limit\' | Remove-NetQosPolicy -ErrorAction SilentlyContinue"',
-                        shell=True, capture_output=True, timeout=3)
-                    cmd = f'powershell -Command "New-NetQosPolicy -Name \'NG_Limit\' -ThrottleRateMbps {speed_kbps / 1000} -NetworkProfile All -ErrorAction SilentlyContinue"'
-                    subprocess.run(cmd, shell=True, capture_output=True, timeout=3)
-                    return True, speed_kbps
-                else:
-                    subprocess.run(
-                        'powershell -Command "Get-NetQosPolicy -Name \'NG_Limit\' | Remove-NetQosPolicy -ErrorAction SilentlyContinue"',
-                        shell=True, capture_output=True, timeout=3)
-                    return False, 0
-            except:
-                return False, 0
+            return self.torrent_protect.set_limit(speed_kbps)
 
         def callback(result):
             success, speed = result
@@ -157,12 +144,19 @@ class TorrentPage(ctk.CTkFrame):
                     text_color="#ffaa00"
                 )
                 self.show_message(f"✅ Лимит {speed} Kbps установлен")
-            else:
+            elif success:
                 self.status_label.configure(text="✅ НЕТ АКТИВНЫХ ОГРАНИЧЕНИЙ", text_color="#00ff88")
                 self.show_message("✅ Лимит отключён")
+            else:
+                self.status_label.configure(text=f"❌ ОШИБКА: {str(speed)[:80]}", text_color="#ff6666")
+                self.show_message(f"❌ {str(speed)[:80]}")
 
         self.status_label.configure(text="⏳ ПРИМЕНЕНИЕ ЛИМИТА...", text_color="#ffaa00")
-        threading.Thread(target=lambda: callback(do_set()), daemon=True).start()
+        def worker():
+            result = do_set()
+            self.after(0, lambda r=result: callback(r))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def get_mode_name(self, speed):
         modes = {1: "ИНКОГНИТО", 50: "НОЧНОЙ", 200: "ТИХИЙ", 500: "БАЛАНС"}

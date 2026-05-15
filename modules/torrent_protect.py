@@ -1,4 +1,4 @@
-import subprocess
+from utils.system_ops import run_command
 
 
 class TorrentProtect:
@@ -15,24 +15,33 @@ class TorrentProtect:
                 # Удаляем старое правило
                 self.remove_limit()
                 # Создаём новое
-                cmd = f'powershell -Command "New-NetQosPolicy -Name \'{self.policy_name}\' -ThrottleRateMbps {speed_kbps / 1000} -NetworkProfile All -ErrorAction SilentlyContinue"'
-                subprocess.run(cmd, shell=True, capture_output=True, timeout=3)
+                result = run_command([
+                    "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                    f"New-NetQosPolicy -Name '{self.policy_name}' -ThrottleRateMbps {speed_kbps / 1000} -NetworkProfile All -ErrorAction Stop",
+                ], timeout=8, admin_required=True)
+                if not result.ok:
+                    return False, result.message
                 self.current_limit = speed_kbps
                 return True, speed_kbps
             else:
-                self.remove_limit()
-                return True, 0
+                if self.remove_limit():
+                    return True, 0
+                return False, "Не удалось отключить лимит"
         except Exception as e:
             return False, str(e)
 
     def remove_limit(self):
         """Удаление ограничения"""
         try:
-            cmd = f'powershell -Command "Get-NetQosPolicy -Name \'{self.policy_name}\' | Remove-NetQosPolicy -ErrorAction SilentlyContinue"'
-            subprocess.run(cmd, shell=True, capture_output=True, timeout=3)
+            result = run_command([
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                f"Get-NetQosPolicy -Name '{self.policy_name}' -ErrorAction SilentlyContinue | Remove-NetQosPolicy -Confirm:$false -ErrorAction Stop",
+            ], timeout=8, admin_required=True)
+            if not result.ok:
+                return False
             self.current_limit = 0
             return True
-        except:
+        except Exception:
             return False
 
     def get_current_limit(self):

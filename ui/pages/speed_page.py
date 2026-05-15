@@ -20,7 +20,8 @@ try:
     import speedtest
 
     SPEEDTEST_AVAILABLE = True
-except ImportError:
+except Exception:
+    speedtest = None
     SPEEDTEST_AVAILABLE = False
 
 
@@ -36,6 +37,8 @@ class SpeedPage(ctk.CTkFrame):
         self.upload_history = deque(maxlen=60)
         self.time_history = deque(maxlen=60)
         self.counter = 0
+        self.graphs_active = False
+        self.speedtest_running = False
 
         self.create_widgets()
         self.start_monitoring()
@@ -173,12 +176,13 @@ class SpeedPage(ctk.CTkFrame):
                     self.down_label.configure(text=f"📥 ЗАГРУЗКА: {down:.1f} Mbps")
                     self.up_label.configure(text=f"📤 ОТДАЧА: {up:.1f} Mbps")
 
-                    self.download_history.append(down)
-                    self.upload_history.append(up)
-                    self.time_history.append(self.counter)
-                    self.counter += 1
+                    if self.graphs_active:
+                        self.download_history.append(down)
+                        self.upload_history.append(up)
+                        self.time_history.append(self.counter)
+                        self.counter += 1
+                        self.update_graphs()
 
-                    self.update_graphs()
                     self.app.update_tray_speed(down)
 
             self.last_net_io = net_io
@@ -212,7 +216,7 @@ class SpeedPage(ctk.CTkFrame):
 
         self.canvas.draw_idle()
 
-    def clear_graphs(self):
+    def clear_graphs(self, show_message=True):
         self.download_history.clear()
         self.upload_history.clear()
         self.time_history.clear()
@@ -221,26 +225,50 @@ class SpeedPage(ctk.CTkFrame):
         if MATPLOTLIB_AVAILABLE:
             self.download_line.set_data([], [])
             self.upload_line.set_data([], [])
+            self.ax1.set_xlim(0, 60)
+            self.ax2.set_xlim(0, 60)
             self.ax1.set_ylim(0, 1000)
             self.ax2.set_ylim(0, 1000)
             self.canvas.draw_idle()
 
-        self.show_message("📊 Графики очищены")
+        if show_message:
+            self.show_message("Графики очищены")
 
     def reset_graph_scale(self):
-        if MATPLOTLIB_AVAILABLE and len(self.download_history) > 0:
-            max_down = max(self.download_history)
-            max_up = max(self.upload_history)
-            self.ax1.set_ylim(0, max(50, max_down * 1.2))
-            self.ax2.set_ylim(0, max(50, max_up * 1.2))
+        if not MATPLOTLIB_AVAILABLE:
+            return
+
+        if not self.download_history or not self.upload_history:
+            self.ax1.set_xlim(0, 60)
+            self.ax2.set_xlim(0, 60)
+            self.ax1.set_ylim(0, 1000)
+            self.ax2.set_ylim(0, 1000)
             self.canvas.draw_idle()
-            self.show_message("📊 Масштаб сброшен")
+            self.show_message("Масштаб сброшен: график пуст")
+            return
+
+        times = list(self.time_history)
+        last_time = times[-1] if times else 60
+        max_down = max(self.download_history)
+        max_up = max(self.upload_history)
+        self.ax1.set_xlim(max(0, last_time - 60), max(60, last_time))
+        self.ax2.set_xlim(max(0, last_time - 60), max(60, last_time))
+        self.ax1.set_ylim(0, max(50, max_down * 1.2))
+        self.ax2.set_ylim(0, max(50, max_up * 1.2))
+        self.canvas.draw_idle()
+        self.show_message("Масштаб сброшен")
 
     def run_speedtest(self):
+        if self.speedtest_running:
+            return
+
         if not SPEEDTEST_AVAILABLE:
             self.show_result("❌ Speedtest не установлен\npip install speedtest-cli")
             return
 
+        self.clear_graphs(show_message=False)
+        self.graphs_active = True
+        self.speedtest_running = True
         self.test_btn.configure(state="disabled", text="⏳ ТЕСТИРУЕМ...")
         self.show_result("📡 ЗАПУСК ТЕСТА СКОРОСТИ...\n")
         threading.Thread(target=self.speedtest_thread, daemon=True).start()
@@ -269,7 +297,13 @@ class SpeedPage(ctk.CTkFrame):
         except Exception as e:
             self.after(0, lambda: self.show_result(f"❌ ОШИБКА: {str(e)[:100]}"))
         finally:
-            self.after(0, lambda: self.test_btn.configure(state="normal", text="⚡ ЗАПУСТИТЬ SPEEDTEST ⚡"))
+            def finish_speedtest():
+                self.graphs_active = False
+                self.speedtest_running = False
+                self.clear_graphs(show_message=False)
+                self.test_btn.configure(state="normal", text="⚡ ЗАПУСТИТЬ SPEEDTEST ⚡")
+
+            self.after(0, finish_speedtest)
 
     def show_result(self, text):
         self.result_text.configure(state="normal")

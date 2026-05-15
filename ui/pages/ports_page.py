@@ -1,35 +1,7 @@
 import customtkinter as ctk
-import subprocess
 import threading
 from utils.simple_tooltip import add_tooltip
-
-class PortManager:
-    def __init__(self):
-        pass
-
-    def open_port(self, port, protocol="TCP"):
-        try:
-            cmd = f'netsh advfirewall firewall add rule name="NG_Port_{port}" dir=in action=allow protocol={protocol} localport={port}'
-            subprocess.run(cmd, shell=True, capture_output=True, timeout=5)
-            return True, f"Порт {port}/{protocol} открыт"
-        except Exception as e:
-            return False, str(e)
-
-    def close_port(self, port):
-        try:
-            cmd = f'netsh advfirewall firewall delete rule name="NG_Port_{port}"'
-            subprocess.run(cmd, shell=True, capture_output=True, timeout=5)
-            return True, f"Порт {port} закрыт"
-        except Exception as e:
-            return False, str(e)
-
-    def list_rules(self):
-        try:
-            cmd = 'netsh advfirewall firewall show rule name=all dir=in | findstr "NG_Port"'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
-            return result.stdout if result.stdout else "Нет активных правил"
-        except:
-            return "Ошибка получения правил"
+from modules.port_manager import PortManager
 
 
 class PortsPage(ctk.CTkFrame):
@@ -145,7 +117,11 @@ class PortsPage(ctk.CTkFrame):
             self.refresh_rules()
 
         self.status_label.configure(text="⏳ ОТКРЫТИЕ ПОРТА...", text_color="#ffaa00")
-        threading.Thread(target=lambda: callback(do_open()), daemon=True).start()
+        def worker():
+            result = do_open()
+            self.after(0, lambda r=result: callback(r))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def close_port(self):
         def do_close():
@@ -165,7 +141,11 @@ class PortsPage(ctk.CTkFrame):
             self.refresh_rules()
 
         self.status_label.configure(text="⏳ ЗАКРЫТИЕ ПОРТА...", text_color="#ffaa00")
-        threading.Thread(target=lambda: callback(do_close()), daemon=True).start()
+        def worker():
+            result = do_close()
+            self.after(0, lambda r=result: callback(r))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def refresh_rules(self):
         self.rules_text.configure(state="normal")

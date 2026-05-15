@@ -1,4 +1,4 @@
-import subprocess
+from utils.system_ops import run_command
 
 
 class PortManager:
@@ -11,21 +11,28 @@ class PortManager:
 
     def open_port(self, port, protocol="TCP"):
         try:
-            cmd = f'netsh advfirewall firewall add rule name="NG_Port_{port}" dir=in action=allow protocol={protocol} localport={port}'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
-            if "ОК" in result.stdout or "OK" in result.stdout:
+            result = run_command([
+                "netsh", "advfirewall", "firewall", "add", "rule",
+                f"name=NG_Port_{port}", "dir=in", "action=allow",
+                f"protocol={protocol}", f"localport={port}",
+            ], timeout=8, admin_required=True)
+            if result.ok:
                 if port not in self.opened_ports:
                     self.opened_ports.append(port)
                 self.cache = {}
                 return True, f"Порт {port}/{protocol} открыт"
-            return False, result.stdout
+            return False, result.message
         except Exception as e:
             return False, str(e)
 
     def close_port(self, port):
         try:
-            cmd = f'netsh advfirewall firewall delete rule name="NG_Port_{port}"'
-            subprocess.run(cmd, shell=True, capture_output=True, timeout=5)
+            result = run_command([
+                "netsh", "advfirewall", "firewall", "delete", "rule",
+                f"name=NG_Port_{port}",
+            ], timeout=8, admin_required=True)
+            if not result.ok:
+                return False, result.message
             if port in self.opened_ports:
                 self.opened_ports.remove(port)
             self.cache = {}
@@ -41,13 +48,15 @@ class PortManager:
             return self.cache.get('rules', "Нет активных правил")
 
         try:
-            cmd = 'netsh advfirewall firewall show rule name=all dir=in | findstr "NG_Port"'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            result = run_command([
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                "netsh advfirewall firewall show rule name=all dir=in | Select-String NG_Port | ForEach-Object { $_.Line }",
+            ], timeout=8)
             rules = result.stdout if result.stdout else "Нет активных правил"
             self.cache['rules'] = rules
             self.cache_time = current_time
             return rules
-        except:
+        except Exception:
             return "Ошибка получения правил"
 
     def is_port_open(self, port):

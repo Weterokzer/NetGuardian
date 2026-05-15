@@ -2,6 +2,21 @@ import customtkinter as ctk
 import psutil
 import threading
 import time
+import os
+
+
+PROTECTED_PROCESS_NAMES = {
+    "system",
+    "registry",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "winlogon.exe",
+    "services.exe",
+    "lsass.exe",
+    "fontdrvhost.exe",
+    "dwm.exe",
+}
 
 
 class ProcessItem(ctk.CTkFrame):
@@ -283,6 +298,10 @@ class ControlPage(ctk.CTkFrame):
 
     def kill_process(self, pid, name):
         """Завершение процесса с подтверждением"""
+        if pid == os.getpid() or name.lower() in PROTECTED_PROCESS_NAMES:
+            self.show_message("❌ Этот системный процесс защищён от завершения", "error")
+            return
+
         # Создаём диалог подтверждения
         dialog = ctk.CTkToplevel(self)
         dialog.title("Подтверждение")

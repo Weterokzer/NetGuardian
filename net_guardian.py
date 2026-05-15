@@ -7,6 +7,11 @@ NetGuardian Ultimate - Защитник сети
 import sys
 import os
 
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
 # Добавляем текущую папку в путь поиска модулей
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

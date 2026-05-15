@@ -1,7 +1,7 @@
 import customtkinter as ctk
 import threading
 import socket
-import subprocess
+from utils.system_ops import run_command
 
 
 class NetworkScanPage(ctk.CTkFrame):
@@ -109,15 +109,15 @@ class NetworkScanPage(ctk.CTkFrame):
             self.after(0, lambda p=progress, c=i: self.update_progress(p, c, total_ips))
 
             try:
-                result = subprocess.run(f"ping -n 1 -w 300 {ip}", shell=True, capture_output=True, text=True)
+                result = run_command(["ping", "-n", "1", "-w", "300", ip], timeout=2)
                 if "TTL=" in result.stdout or "ttl=" in result.stdout.lower():
                     try:
                         hostname = socket.gethostbyaddr(ip)[0]
-                    except:
+                    except Exception:
                         hostname = "Неизвестно"
 
                     devices.append((ip, hostname))
-            except:
+            except Exception:
                 continue
 
         self.after(0, lambda: self.show_results(devices))

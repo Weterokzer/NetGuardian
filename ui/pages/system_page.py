@@ -6,6 +6,7 @@ import threading
 import shutil
 from datetime import datetime
 from core.language import Language
+from utils.system_ops import clean_temp_files, run_command, is_admin
 
 lang = Language()
 
@@ -167,21 +168,9 @@ class SystemPage(ctk.CTkFrame):
 
     def clean_temp(self):
         def do_clean():
-            targets = [os.environ.get('TEMP'), os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Temp')]
-            files_deleted, size_freed = 0, 0
-            for target in targets:
-                if target and os.path.exists(target):
-                    for root, dirs, files in os.walk(target):
-                        for name in files:
-                            try:
-                                file_path = os.path.join(root, name)
-                                size_freed += os.path.getsize(file_path)
-                                os.remove(file_path)
-                                files_deleted += 1
-                            except:
-                                pass
-            msg = lang.get("system_clean_done").format(files=files_deleted, size=f"{size_freed / 1024 / 1024:.1f}")
-            self.after(0, lambda: self.clean_status.configure(text=f"✅ {msg}", text_color="#00ff88"))
+            _, _, failed, _, msg = clean_temp_files()
+            color = "#ffaa00" if failed else "#00ff88"
+            self.after(0, lambda: self.clean_status.configure(text=f"✅ {msg}", text_color=color))
 
         self.clean_status.configure(text=f"⏳ {lang.get('system_clean_status')}", text_color="#ffaa00")
         threading.Thread(target=do_clean, daemon=True).start()
@@ -375,48 +364,50 @@ class SystemPage(ctk.CTkFrame):
                 results = []
 
                 if opt_telemetry.get():
-                    try:
-                        subprocess.run(["sc", "stop", "DiagTrack"], capture_output=True)
-                        subprocess.run(["sc", "config", "DiagTrack", "start=", "disabled"], capture_output=True)
+                    stop_result = run_command(["sc", "stop", "DiagTrack"], timeout=8, admin_required=True)
+                    config_result = run_command(["sc", "config", "DiagTrack", "start=", "disabled"], timeout=8,
+                                                admin_required=True)
+                    if config_result.ok:
                         results.append("✅ Телеметрия отключена")
-                    except:
-                        results.append("❌ Телеметрия - ошибка")
+                    else:
+                        results.append(f"❌ Телеметрия: {config_result.message[:80] or stop_result.message[:80]}")
 
                 if opt_menu.get():
-                    try:
-                        subprocess.run(["reg", "add", "HKCU\\Control Panel\\Desktop", "/v", "MenuShowDelay",
-                                        "/t", "REG_SZ", "/d", "0", "/f"], capture_output=True)
+                    menu_result = run_command(["reg", "add", "HKCU\\Control Panel\\Desktop", "/v", "MenuShowDelay",
+                                               "/t", "REG_SZ", "/d", "0", "/f"], timeout=8)
+                    if menu_result.ok:
                         results.append("✅ Ускорение меню применено")
-                    except:
-                        results.append("❌ Ускорение меню - ошибка")
+                    else:
+                        results.append(f"❌ Ускорение меню: {menu_result.message[:80]}")
 
                 if opt_prefetch.get():
-                    try:
-                        prefetch_path = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Prefetch')
-                        if os.path.exists(prefetch_path):
-                            count = 0
-                            for f in os.listdir(prefetch_path):
-                                try:
-                                    os.remove(os.path.join(prefetch_path, f))
-                                    count += 1
-                                except:
-                                    pass
-                            if count > 0:
-                                results.append(f"✅ Prefetch очищен ({count} файлов)")
-                            else:
-                                results.append("ℹ️ Prefetch уже пуст")
+                    prefetch_path = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Prefetch')
+                    if not is_admin():
+                        results.append("❌ Prefetch: нужен запуск от имени администратора")
+                    elif os.path.exists(prefetch_path):
+                        count = 0
+                        failed = 0
+                        for f in os.listdir(prefetch_path):
+                            try:
+                                os.remove(os.path.join(prefetch_path, f))
+                                count += 1
+                            except Exception:
+                                failed += 1
+                        if count > 0:
+                            results.append(f"✅ Prefetch очищен ({count} файлов, ошибок: {failed})")
                         else:
-                            results.append("ℹ️ Prefetch не найден")
-                    except:
-                        results.append("❌ Prefetch - ошибка")
+                            results.append(f"ℹ️ Prefetch уже пуст или занят системой (ошибок: {failed})")
+                    else:
+                        results.append("ℹ️ Prefetch не найден")
 
                 if opt_indexing.get():
-                    try:
-                        subprocess.run('net stop "Windows Search"', shell=True, capture_output=True)
-                        subprocess.run('sc config "WSearch" start= disabled', shell=True, capture_output=True)
+                    stop_result = run_command(["net", "stop", "Windows Search"], timeout=8, admin_required=True)
+                    config_result = run_command(["sc", "config", "WSearch", "start=", "disabled"], timeout=8,
+                                                admin_required=True)
+                    if config_result.ok:
                         results.append("✅ Индексация отключена")
-                    except:
-                        results.append("❌ Индексация - ошибка")
+                    else:
+                        results.append(f"❌ Индексация: {config_result.message[:80] or stop_result.message[:80]}")
 
                 for r in results:
                     self.after(0, lambda res=r: add_result(res))
@@ -461,8 +452,30 @@ class SystemPage(ctk.CTkFrame):
         text_box = ctk.CTkTextbox(dialog, font=ctk.CTkFont(family="Consolas", size=10), state="disabled")
         text_box.pack(fill="both", expand=True, padx=10, pady=10)
         try:
-            output = subprocess.check_output('wmic startup get caption,command', shell=True).decode('utf-8',
-                                                                                                    errors='ignore')
+            cmd = [
+                "powershell",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-Command",
+                (
+                    "$paths = "
+                    "'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run',"
+                    "'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run',"
+                    "'HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run';"
+                    "$items = foreach ($path in $paths) {"
+                    "  if (Test-Path $path) {"
+                    "    $props = Get-ItemProperty -Path $path;"
+                    "    $props.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' } | ForEach-Object {"
+                    "      [PSCustomObject]@{ Name = $_.Name; Command = [string]$_.Value; Source = $path }"
+                    "    }"
+                    "  }"
+                    "};"
+                    "$items | Sort-Object Name | Format-Table -AutoSize | Out-String -Width 240"
+                )
+            ]
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=10).decode('utf-8', errors='ignore')
+            if not output.strip():
+                output = "Startup entries not found."
             text_box.configure(state="normal")
             text_box.insert("end", output)
             text_box.configure(state="disabled")
